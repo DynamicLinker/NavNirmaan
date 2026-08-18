@@ -303,147 +303,149 @@ def _parse_3mf_to_obj(filepath: str, obj_path: str, mtl_path: str) -> None:
     log(f"OBJ written: {obj_path} ({global_vertex_offset} vertices total)")
 
 
-def _bake_material_colors_to_vertex_color(obj: bpy.types.Object) -> None:
+# (vertex color baking removed — colors are now set directly on Principled BSDF)
+
+
+# Furniture keyword list
+_FURNITURE_KEYWORDS = (
+    'bed', 'sofa', 'table', 'counter', 'chair', 'wardrobe',
+    'shelf', 'desk', 'toilet', 'sink', 'bathtub', 'couch',
+)
+
+
+# Hardcoded PBR palette — rich, vivid, architectural
+# Linear-space RGB 0-1 values. Made slightly darker per user request.
+COLOR_PALETTE = {
+    # Furniture
+    'bed':              (0.68, 0.05, 0.05),   # Rich Crimson (Darker)
+    'sofa':             (0.10, 0.22, 0.60),   # Royal Blue (Darker)
+    'couch':            (0.10, 0.22, 0.60),   # Royal Blue (Darker)
+    'table':            (0.32, 0.14, 0.03),   # Warm Walnut (Darker)
+    'counter':          (0.08, 0.17, 0.17),   # Dark Teal (Darker)
+    'chair':            (0.55, 0.44, 0.22),   # Tan (Darker)
+    'wardrobe':         (0.22, 0.10, 0.03),   # Deep Mahogany (Darker)
+    'desk':             (0.42, 0.26, 0.08),   # Oak (Darker)
+    'toilet':           (0.75, 0.77, 0.80),   # Porcelain (Darker)
+    'bathtub':          (0.70, 0.75, 0.80),   # Ice White (Darker)
+    'sink':             (0.68, 0.72, 0.75),   # Silver-White (Darker)
+    'shelf':            (0.45, 0.30, 0.11),   # Beech (Darker)
+    # Structure
+    'wall':             (0.70, 0.68, 0.64),   # Warm Off-White (Darker)
+    'floor':            (0.48, 0.35, 0.22),   # Warm Wood (Darker)
+    'ceiling':          (0.75, 0.75, 0.71),   # Pale Cream (Darker)
+    'door':             (0.42, 0.26, 0.11),   # Oak Door (Darker)
+    'window':           (0.42, 0.60, 0.70),   # Sky Blue Glass (Darker)
+    # Fallbacks
+    'default_furniture':(0.42, 0.26, 0.11),   # Generic Warm Wood (Darker)
+    'default_house':    (0.65, 0.63, 0.60),   # Generic Warm Wall (Darker)
+}
+
+
+def _is_furniture(name: str) -> bool:
+    """Return True if the object name looks like a furniture piece."""
+    return any(kw in name.lower() for kw in _FURNITURE_KEYWORDS)
+
+
+def _get_color_for_object(obj) -> tuple:
     """
-    After importing an OBJ, Blender assigns a separate material slot to
-    each 'usemtl' group.  This function reads the Kd (diffuse) color from
-    each material and bakes it into a per-loop vertex color attribute so
-    the rest of the pipeline (which expects vertex colors) works correctly.
-
-    Steps:
-        1. Create a new Color Attribute layer named 'Col'.
-        2. For each face, look up the material in its slot, read its
-           Kd-equivalent node color (or diffuse_color), and write that
-           color to all loops of the face.
+    Determine the best RGB color for an object.
+    Priority: name keyword match -> geometry bounding-box heuristic.
     """
-    log("Baking per-face material colors into vertex color attribute ...")
+    name  = obj.name.lower()
 
-    mesh = obj.data
-
-    # Create the color attribute (per-loop, BYTE_COLOR for efficiency).
-    if 'Col' in mesh.color_attributes:
-        mesh.color_attributes.remove(mesh.color_attributes['Col'])
-    col_attr = mesh.color_attributes.new(
-        name='Col', type='BYTE_COLOR', domain='CORNER'
-    )
-    mesh.color_attributes.active_color = col_attr
-
-    # Build a lookup: material_index -> (r, g, b)
-    mat_color_map: dict[int, tuple] = {}
-    for mat_idx, mat in enumerate(obj.data.materials):
-        if mat is None:
-            mat_color_map[mat_idx] = (0.8, 0.8, 0.8)
+    # 1. Name keyword match
+    for key, color in COLOR_PALETTE.items():
+        if key.startswith('default_'):
             continue
-        # Try to read Kd from the Principled BSDF Base Color if nodes are on.
-        if mat.use_nodes:
-            bsdf = mat.node_tree.nodes.get('Principled BSDF')
-            if bsdf:
-                bc = bsdf.inputs['Base Color'].default_value
-                mat_color_map[mat_idx] = (bc[0], bc[1], bc[2])
-                continue
-        # Fallback: use mat.diffuse_color.
-        dc = mat.diffuse_color
-        mat_color_map[mat_idx] = (dc[0], dc[1], dc[2])
+        if key in name:
+            return color
 
-    # Paint every loop with the color of its face's material.
-    color_data = col_attr.data
-    for poly in mesh.polygons:
-        rgb = mat_color_map.get(poly.material_index, (0.8, 0.8, 0.8))
-        for loop_idx in poly.loop_indices:
-            cd = color_data[loop_idx]
-            cd.color = (rgb[0], rgb[1], rgb[2], 1.0)
+    # 2. Geometry heuristic: analyse bounding box
+    wm    = obj.matrix_world
+    verts = [wm @ v.co for v in obj.data.vertices]
+    if verts:
+        zs = [v.z for v in verts]
+        xs = [v.x for v in verts]
+        ys = [v.y for v in verts]
+        z0, z1 = min(zs), max(zs)
+        dx, dy, dz = max(xs)-min(xs), max(ys)-min(ys), z1-z0
 
-    log(f"Vertex colors baked across {len(mesh.polygons)} faces.")
+        # Tall -> wall
+        if dz > 3.0:
+            if min(dx, dy) <= 0.7:
+                return COLOR_PALETTE['wall']
+            return COLOR_PALETTE['default_house']
+
+        # Flat slab -> floor
+        if dz <= 0.5:
+            return COLOR_PALETTE['floor']
+
+        # Floating above floor -> furniture
+        if z0 > 0.35:
+            if dz < 1.5 and max(dx, dy) > 5.0:
+                return COLOR_PALETTE['sofa'] if dy < 3.5 else COLOR_PALETTE['table']
+            if dz > 1.0 and min(dx, dy) > 4.0:
+                return COLOR_PALETTE['bed']
+            return COLOR_PALETTE['default_furniture']
+
+    # Final fallback
+    if _is_furniture(obj.name):
+        return COLOR_PALETTE['default_furniture']
+    return COLOR_PALETTE['default_house']
 
 
-def import_3mf(filepath: str) -> bpy.types.Object:
+def import_mesh_file(filepath: str) -> list:
     """
-    Import a .3mf house mesh into Blender 5.2.
-
-    Blender 5.2 removed the io_scene_3mf add-on, so we use a two-stage
-    approach that relies only on operators that exist in 5.2:
-
-        Stage A – stdlib parse:
-            Read the .3mf (a ZIP of XML) with Python's zipfile and
-            xml.etree.ElementTree modules.  Extract vertices, triangles,
-            and basematerial color palettes.  Write a temporary .obj + .mtl
-            pair that encodes the colors as named materials.
-
-        Stage B – Blender OBJ import:
-            Call bpy.ops.wm.obj_import on the temp .obj file.
-            Join any multiple resulting objects into one 'House_Mesh'.
-            Bake the per-face material colors into a 'Col' vertex color
-            attribute so the rest of the pipeline can read them uniformly.
-
-    Args:
-        filepath: Absolute or relative path to the .3mf file.
-
-    Returns:
-        The imported (and merged) mesh object named 'House_Mesh'.
+    Import a .3mf or .stl house mesh file into Blender 5.2.
+    No vertex color baking — colors are applied directly as PBR materials.
     """
-    log(f"Importing .3mf: {filepath} ...")
-
-    # Resolve to an absolute path so temp files land next to it cleanly.
+    log(f"Importing mesh file: {filepath} ...")
     abs_path = os.path.abspath(filepath)
+    ext = os.path.splitext(abs_path)[1].lower()
+    pre_import_names = {o.name for o in bpy.data.objects}
 
-    # Create temp OBJ and MTL paths alongside the source file.
-    tmp_dir  = tempfile.mkdtemp()
-    obj_path = os.path.join(tmp_dir, "house_temp.obj")
-    mtl_path = os.path.join(tmp_dir, "house_temp.mtl")
+    if ext == '.stl':
+        if hasattr(bpy.ops.wm, 'stl_import'):
+            bpy.ops.wm.stl_import(filepath=abs_path)
+        else:
+            bpy.ops.import_mesh.stl(filepath=abs_path)
 
-    # --- Stage A: parse 3MF -> OBJ/MTL -------------------------------------
-    _parse_3mf_to_obj(abs_path, obj_path, mtl_path)
+    elif ext == '.3mf':
+        tmp_dir  = tempfile.mkdtemp()
+        obj_path = os.path.join(tmp_dir, 'house_temp.obj')
+        mtl_path = os.path.join(tmp_dir, 'house_temp.mtl')
+        _parse_3mf_to_obj(abs_path, obj_path, mtl_path)
+        bpy.ops.wm.obj_import(filepath=obj_path, forward_axis='Y', up_axis='Z')
+        try:
+            os.remove(obj_path)
+            os.remove(mtl_path)
+            os.rmdir(tmp_dir)
+        except OSError as e:
+            log(f'WARNING: Could not remove temp files: {e}')
+    else:
+        raise RuntimeError(f'Unsupported format: {ext}')
 
-    # --- Stage B: import OBJ into Blender ----------------------------------
-    pre_import_names = {obj.name for obj in bpy.data.objects}
+    imported = [
+        o for o in bpy.data.objects
+        if o.name not in pre_import_names and o.type == 'MESH'
+    ]
+    if not imported:
+        raise RuntimeError('No mesh objects were imported. Check the input file.')
 
-    # bpy.ops.wm.obj_import exists in Blender 4.0+ (replaces import_scene.obj).
-    bpy.ops.wm.obj_import(
-        filepath=obj_path,
-        forward_axis='Y',    # 3MF Y-forward convention
-        up_axis='Z',
-    )
+    # Separate by loose parts so floor, walls, and furniture are distinct
+    bpy.ops.object.select_all(action='DESELECT')
+    for obj in imported:
+        obj.select_set(True)
+    bpy.context.view_layer.objects.active = imported[0]
+    bpy.ops.mesh.separate(type='LOOSE')
 
     new_objects = [
-        obj for obj in bpy.data.objects
-        if obj.name not in pre_import_names and obj.type == 'MESH'
+        o for o in bpy.data.objects
+        if o.name not in pre_import_names and o.type == 'MESH'
     ]
-
-    if not new_objects:
-        raise RuntimeError(
-            "No mesh objects were created after importing the converted OBJ. "
-            f"Check that '{obj_path}' contains valid geometry."
-        )
-
-    log(f"OBJ import created {len(new_objects)} mesh object(s).")
-
-    # --- Merge all objects --------------------------------------------------
-    deselect_all()
-    for obj in new_objects:
-        obj.select_set(True)
-    bpy.context.view_layer.objects.active = new_objects[-1]
-
-    if len(new_objects) > 1:
-        log("Joining imported meshes into a single object ...")
-        bpy.ops.object.join()
-
-    house_obj = bpy.context.view_layer.objects.active
-    house_obj.name = "House_Mesh"
-
-    # --- Bake material colors -> vertex color attribute ---------------------
-    _bake_material_colors_to_vertex_color(house_obj)
-
-    # --- Clean up temp files ------------------------------------------------
-    try:
-        os.remove(obj_path)
-        os.remove(mtl_path)
-        os.rmdir(tmp_dir)
-        log("Temporary OBJ/MTL files removed.")
-    except OSError as e:
-        log(f"WARNING: Could not remove temp files: {e}")
-
-    log(f"House mesh ready: '{house_obj.name}'")
-    return house_obj
+    
+    log(f'Imported and separated into {len(new_objects)} mesh object(s).')
+    return new_objects
 
 
 def apply_smooth_shading(obj: bpy.types.Object) -> None:
@@ -461,22 +463,23 @@ def apply_smooth_shading(obj: bpy.types.Object) -> None:
         - Right-angle walls (90 deg) are well above the threshold -> hard.
         - Gentle curves (< 30 deg between faces) -> smooth shading.
     """
-    log("Applying shade-smooth + Edge Split modifier ...")
+    log(f"Applying shade-smooth + Edge Split on '{obj.name}' ...")
 
     select_obj(obj)
-
-    # Mark all faces as smooth-shaded (no per-face hard/flat shading).
     bpy.ops.object.shade_smooth()
 
-    # Add the Edge Split modifier.
     edge_split_mod = obj.modifiers.new(name="Edge_Split_Arch", type='EDGE_SPLIT')
+    edge_split_mod.split_angle    = math.radians(30)
+    edge_split_mod.use_edge_angle = True
+    edge_split_mod.use_edge_sharp = False
 
-    # 30 degrees in radians.
-    edge_split_mod.split_angle   = math.radians(30)
-    edge_split_mod.use_edge_angle = True   # Split by angle threshold.
-    edge_split_mod.use_edge_sharp = False  # Ignore manually-marked sharp edges.
+    log(f"Shade smooth + Edge Split applied to '{obj.name}'.")
 
-    log("Shade smooth + Edge Split (30 deg threshold) applied.")
+
+def apply_smooth_shading_all(objects: list) -> None:
+    """Apply shade smooth + Edge Split to every object in the list."""
+    for obj in objects:
+        apply_smooth_shading(obj)
 
 
 # =============================================================================
@@ -514,85 +517,121 @@ def get_vertex_color_layer_name(obj: bpy.types.Object) -> str:
     return "Col"
 
 
-def build_vertex_color_material(obj: bpy.types.Object) -> bpy.types.Material:
+def upgrade_material_to_pbr(mat: bpy.types.Material) -> None:
     """
-    Build a realistic PBR material whose Base Color is driven entirely by
-    the mesh's vertex color / color attribute layer.
-
-    Node graph:
-        [ShaderNodeVertexColor]
-              |
-              | Color
-              v
-        [Principled BSDF]  (Roughness=0.8, Specular=0.1)
-              |
-              | BSDF
-              v
-        [Material Output]
-
-    The Principled BSDF settings produce a matte, architectural-surface look:
-        Roughness 0.8  -> diffuse / slightly rough surface (concrete, drywall).
-        Specular  0.1  -> nearly non-reflective (avoids plastic-like shine).
-
-    Returns:
-        The created bpy.types.Material.
+    Take an existing material (imported from OBJ/MTL) and upgrade its
+    node tree to a proper Principled BSDF, preserving its Base Color.
     """
-    log("Building vertex-color PBR material ...")
+    # Extract existing color from either BSDF or diffuse fallback
+    rgb = (0.8, 0.8, 0.8)
+    if mat.use_nodes:
+        bsdf = mat.node_tree.nodes.get('Principled BSDF')
+        if bsdf and 'Base Color' in bsdf.inputs:
+            c = bsdf.inputs['Base Color'].default_value
+            rgb = (c[0], c[1], c[2])
+    else:
+        c = mat.diffuse_color
+        rgb = (c[0], c[1], c[2])
 
-    mat = bpy.data.materials.new(name="House_VertexColor_PBR")
     mat.use_nodes = True
-
-    node_tree = mat.node_tree
-    nodes     = node_tree.nodes
-    links     = node_tree.links
-
-    # Start with a clean slate.
+    nodes = mat.node_tree.nodes
+    links = mat.node_tree.links
     nodes.clear()
 
-    # --- Principled BSDF node -----------------------------------------------
-    bsdf = nodes.new(type='ShaderNodeBsdfPrincipled')
-    bsdf.location = (300, 300)
-    bsdf.inputs["Roughness"].default_value = 0.8
+    bsdf = nodes.new('ShaderNodeBsdfPrincipled')
+    out  = nodes.new('ShaderNodeOutputMaterial')
+    bsdf.location = (0,   0)
+    out.location  = (400, 0)
 
-    # Blender 4.0 renamed the specular input; support both names.
-    if "Specular IOR Level" in bsdf.inputs:
-        bsdf.inputs["Specular IOR Level"].default_value = 0.1
-    elif "Specular" in bsdf.inputs:
-        bsdf.inputs["Specular"].default_value = 0.1
+    bsdf.inputs['Base Color'].default_value = (rgb[0], rgb[1], rgb[2], 1.0)
+    bsdf.inputs['Roughness'].default_value  = 0.65
+    bsdf.inputs['Metallic'].default_value   = 0.0
 
-    # --- Material Output node -----------------------------------------------
-    output_node = nodes.new(type='ShaderNodeOutputMaterial')
-    output_node.location = (600, 300)
+    spec_key = 'Specular IOR Level' if 'Specular IOR Level' in bsdf.inputs else 'Specular'
+    if spec_key in bsdf.inputs:
+        bsdf.inputs[spec_key].default_value = 0.15
 
-    links.new(bsdf.outputs["BSDF"], output_node.inputs["Surface"])
+    links.new(bsdf.outputs['BSDF'], out.inputs['Surface'])
+    mat.diffuse_color = (rgb[0], rgb[1], rgb[2], 1.0)
 
-    # --- Color Attribute / Vertex Color node --------------------------------
-    color_layer_name = get_vertex_color_layer_name(obj)
 
-    # ShaderNodeVertexColor exists in both Blender 3.x and 4.x.
-    # It reads the named color attribute layer and outputs per-vertex color.
-    try:
-        color_node = nodes.new(type='ShaderNodeVertexColor')
-        color_node.layer_name = color_layer_name
-        color_node.location   = (-200, 300)
-        log("Using ShaderNodeVertexColor node.")
-    except Exception:
-        # Ultimate fallback: generic Attribute node (works on all versions).
-        color_node = nodes.new(type='ShaderNodeAttribute')
-        color_node.attribute_name = color_layer_name
-        color_node.attribute_type = 'GEOMETRY'
-        color_node.location       = (-200, 300)
-        log("Fallback: using ShaderNodeAttribute node for vertex color.")
+def build_pbr_material(obj: bpy.types.Object) -> None:
+    """Fallback for objects with no materials (e.g. STL)."""
+    rgb = _get_color_for_object(obj)
+    
+    obj.data.materials.clear()
 
-    # Wire Color output -> Base Color input.
-    links.new(color_node.outputs["Color"], bsdf.inputs["Base Color"])
+    if rgb == COLOR_PALETTE['wall'] or rgb == COLOR_PALETTE['default_house']:
+        rgb_outer = rgb
+        rgb_inner = (rgb[0] * 0.75, rgb[1] * 0.75, rgb[2] * 0.75)  # Darker inner walls
+        
+        mat_outer = bpy.data.materials.new(name=f"Mat_{obj.name}_Outer")
+        mat_inner = bpy.data.materials.new(name=f"Mat_{obj.name}_Inner")
+        
+        for mat, c in [(mat_outer, rgb_outer), (mat_inner, rgb_inner)]:
+            mat.use_nodes = True
+            mat.diffuse_color = (c[0], c[1], c[2], 1.0)
+            upgrade_material_to_pbr(mat)
+            mat.node_tree.nodes['Principled BSDF'].inputs['Base Color'].default_value = (c[0], c[1], c[2], 1.0)
+            obj.data.materials.append(mat)
+            
+        # Determine inner/outer faces based on bounding box
+        verts = obj.data.vertices
+        xs = [v.co.x for v in verts]
+        ys = [v.co.y for v in verts]
+        if xs and ys:
+            min_x, max_x = min(xs), max(xs)
+            min_y, max_y = min(ys), max(ys)
+            margin = 0.1
+            
+            for poly in obj.data.polygons:
+                nx, ny, nz = poly.normal.x, poly.normal.y, poly.normal.z
+                cx, cy = poly.center.x, poly.center.y
+                
+                is_outer = False
+                if abs(nz) < 0.1:  # Vertical face
+                    if nx > 0.5 and cx >= max_x - margin: is_outer = True
+                    elif nx < -0.5 and cx <= min_x + margin: is_outer = True
+                    elif ny > 0.5 and cy >= max_y - margin: is_outer = True
+                    elif ny < -0.5 and cy <= min_y + margin: is_outer = True
+                
+                poly.material_index = 0 if is_outer else 1
+                
+        obj.color = (rgb_outer[0], rgb_outer[1], rgb_outer[2], 1.0)
 
-    # --- Assign material to the mesh ----------------------------------------
-    obj.data.materials.clear()      # Remove any auto-assigned materials.
-    obj.data.materials.append(mat)
+    else:
+        mat = bpy.data.materials.new(name=f"Mat_{obj.name}")
+        mat.use_nodes = True
+        mat.diffuse_color = (rgb[0], rgb[1], rgb[2], 1.0)
+        upgrade_material_to_pbr(mat)
+        mat.node_tree.nodes['Principled BSDF'].inputs['Base Color'].default_value = (rgb[0], rgb[1], rgb[2], 1.0)
+        obj.data.materials.append(mat)
+        obj.color = (rgb[0], rgb[1], rgb[2], 1.0)
 
-    log(f"Material '{mat.name}' assigned to '{obj.name}'.")
-    return mat
+
+def build_materials_for_all(objects: list) -> None:
+    """Build or upgrade PBR materials for all imported objects."""
+    log("Upgrading materials to PBR ...")
+    upgraded = set()
+
+    for obj in objects:
+        mats = obj.data.materials
+        # If no materials, or if the only material is the fallback "mat_default"
+        if not mats or (len(mats) == 1 and mats[0].name.startswith('mat_default')):
+            build_pbr_material(obj)
+        else:
+            for mat in mats:
+                if mat is None:
+                    continue
+                if mat.name not in upgraded:
+                    upgrade_material_to_pbr(mat)
+                    upgraded.add(mat.name)
+            
+            # Set viewport object color to the first material's color
+            if mats[0]:
+                obj.color = mats[0].diffuse_color
+
+    log(f"Upgraded {len(upgraded)} unique material(s) across {len(objects)} object(s).")
 
 
 # =============================================================================
@@ -616,23 +655,35 @@ def setup_sky_and_lighting() -> None:
         128 samples (final) / 32 samples (preview) - good quality / speed
         balance for interactive use and quick test renders.
     """
-    log("Setting up Cycles render engine and Nishita sky ...")
+    log("Setting up render engine and sky ...")
 
-    scene = bpy.context.scene
+    scene = bpy.context.scene  # define scene first
 
-    # --- Render engine -------------------------------------------------------
-    scene.render.engine          = 'CYCLES'
-    scene.cycles.samples         = 128
-    scene.cycles.preview_samples = 32
+    # Prefer EEVEE_NEXT (fast, real-time material colors); fall back to CYCLES.
+    for engine in ('BLENDER_EEVEE_NEXT', 'BLENDER_EEVEE', 'CYCLES'):
+        try:
+            scene.render.engine = engine
+            log(f"Render engine set to: {engine}")
+            break
+        except Exception:
+            continue
 
-    # Attempt to enable GPU rendering (CUDA for NVIDIA; silently ignores
-    # errors on CPU-only machines so the script is portable everywhere).
-    try:
-        cycles_prefs = bpy.context.preferences.addons["cycles"].preferences
-        cycles_prefs.compute_device_type = 'CUDA'
-        cycles_prefs.get_devices()         # Refresh device list.
-    except Exception:
-        log("GPU (CUDA) not available; Cycles will use CPU.")
+    if scene.render.engine == 'CYCLES':
+        scene.cycles.samples = 128
+        scene.cycles.preview_samples = 32
+
+    # Configure all open 3D Viewports to show Material Preview shading so
+    # colors are visible the instant the .blend file is opened.
+    for screen in bpy.data.screens:
+        for area in screen.areas:
+            if area.type == 'VIEW_3D':
+                for space in area.spaces:
+                    if space.type == 'VIEW_3D':
+                        space.shading.type = 'MATERIAL'   # Material Preview mode
+                        space.shading.use_scene_lights = True
+                        space.shading.use_scene_world   = True
+                        # In Solid mode, show material color instead of default grey
+                        space.shading.color_type = 'MATERIAL'
 
     # --- World / sky node graph ---------------------------------------------
     world = bpy.data.worlds.new("Sky_World")
@@ -695,6 +746,97 @@ def setup_sky_and_lighting() -> None:
 
 
 # =============================================================================
+# STEP 4b - Per-Room Lighting
+# =============================================================================
+
+def add_interior_lighting(objects: list) -> None:
+    """
+    Add interior point lights to illuminate the scene from within.
+
+    Strategy:
+        1. Compute the bounding box of the entire scene.
+        2. Place one "Sun" area light above the model for exterior fill.
+        3. Walk through every object; if it looks like a ceiling/floor slab
+           (very flat), place a point light at its centroid to act as an
+           interior room light.
+        4. Add a warm fill light slightly off-center for visual warmth.
+
+    Args:
+        objects: List of all imported mesh objects.
+    """
+    log("Adding interior and ambient lighting ...")
+
+    scene = bpy.context.scene
+
+    # --- Collect overall scene bounds ----------------------------------------
+    all_xs, all_ys, all_zs = [], [], []
+    for obj in objects:
+        wm = obj.matrix_world
+        for v in obj.data.vertices:
+            co = wm @ v.co
+            all_xs.append(co.x)
+            all_ys.append(co.y)
+            all_zs.append(co.z)
+
+    if not all_xs:
+        log("WARNING: No geometry found; skipping interior lighting.")
+        return
+
+    cx = (min(all_xs) + max(all_xs)) / 2.0
+    cy = (min(all_ys) + max(all_ys)) / 2.0
+    top_z = max(all_zs)
+
+    # --- Sun lamp (overhead exterior fill) -----------------------------------
+    sun_data = bpy.data.lights.new(name="Sun_Fill", type='SUN')
+    sun_data.energy = 3.0
+    sun_data.color  = (1.0, 0.97, 0.9)   # slightly warm white
+    sun_data.angle  = math.radians(5)    # small angular diameter = harder shadows
+    sun_obj = bpy.data.objects.new(name="Sun_Fill", object_data=sun_data)
+    bpy.context.collection.objects.link(sun_obj)
+    sun_obj.location       = (cx, cy, top_z + 20.0)
+    sun_obj.rotation_euler = (math.radians(60), 0.0, math.radians(30))
+    log(f"Sun lamp added at ({cx:.2f}, {cy:.2f}, {top_z + 20.0:.2f}).")
+
+    # --- Central warm fill point light ---------------------------------------
+    fill_data = bpy.data.lights.new(name="Interior_Fill", type='POINT')
+    fill_data.energy = 500.0
+    fill_data.color  = (1.0, 0.9, 0.75)   # warm incandescent tone
+    fill_data.shadow_soft_size = 2.0
+    fill_obj = bpy.data.objects.new(name="Interior_Fill", object_data=fill_data)
+    bpy.context.collection.objects.link(fill_obj)
+    fill_obj.location = (cx, cy, top_z * 0.85)
+    log(f"Interior fill light at Z={top_z * 0.85:.2f}.")
+
+    # --- Per-object accent lights for furniture ------------------------------
+    light_count = 0
+    for obj in objects:
+        if not _is_furniture(obj.name):
+            continue
+        wm = obj.matrix_world
+        verts = [wm @ v.co for v in obj.data.vertices]
+        if not verts:
+            continue
+        obj_cx = sum(v.x for v in verts) / len(verts)
+        obj_cy = sum(v.y for v in verts) / len(verts)
+        obj_cz = max(v.z for v in verts) + 1.5   # 1.5 units above furniture top
+
+        accent_data = bpy.data.lights.new(
+            name=f"Accent_{obj.name}", type='POINT'
+        )
+        accent_data.energy = 80.0
+        accent_data.color  = (1.0, 0.95, 0.85)
+        accent_data.shadow_soft_size = 0.5
+        accent_obj = bpy.data.objects.new(
+            name=f"Accent_{obj.name}", object_data=accent_data
+        )
+        bpy.context.collection.objects.link(accent_obj)
+        accent_obj.location = (obj_cx, obj_cy, obj_cz)
+        light_count += 1
+
+    log(f"Added {light_count} furniture accent light(s).")
+
+
+# =============================================================================
 # STEP 5 - First-Person Camera Setup
 # =============================================================================
 
@@ -733,56 +875,60 @@ def compute_mesh_center_xy(obj: bpy.types.Object) -> tuple:
     return center_x, center_y
 
 
-def setup_first_person_camera(obj: bpy.types.Object) -> bpy.types.Object:
+def setup_first_person_camera(objects: list) -> bpy.types.Object:
     """
     Create a 'Player_Camera' positioned at the center of the house at
     standard human eye height (1.6 m) and oriented to look forward.
 
     Camera specifications:
-        Location   : (center_x, center_y, 1.6)
-        Rotation   : (90 deg, 0, 0) in XYZ Euler
-                     -> The camera forward vector becomes +Y (into the scene).
-        Focal length: 60 mm  -> natural, non-distorted perspective.
-        Clip Start : 0.05 m  -> prevents near-plane z-fighting with thin walls.
-        Clip End   : 500 m   -> sufficient for any domestic floor plan.
-
-    The camera is set as bpy.context.scene.camera so it is immediately
-    active for rendering and VR walk-through previews.
+        Location    : (center_x, center_y, 1.6)
+        Rotation    : (90 deg, 0, 0) in XYZ Euler
+                      -> camera forward vector = +Y.
+        Focal length: 60 mm  -> natural perspective.
+        Clip Start  : 0.05 m -> prevents z-fighting with thin walls.
+        Clip End    : 500 m  -> sufficient for any domestic floor plan.
 
     Args:
-        obj: The house mesh object (used to compute XY center).
+        objects: List of all imported mesh objects (used to compute XY center).
 
     Returns:
         The created camera object.
     """
     log("Creating first-person Player_Camera ...")
 
-    center_x, center_y = compute_mesh_center_xy(obj)
+    # Aggregate bounding box across all objects.
+    all_xs, all_ys = [], []
+    for obj in objects:
+        wm = obj.matrix_world
+        for v in obj.data.vertices:
+            co = wm @ v.co
+            all_xs.append(co.x)
+            all_ys.append(co.y)
 
-    EYE_HEIGHT_M = 1.6  # Standard human eye level in metres.
+    if not all_xs:
+        raise RuntimeError("No geometry found — cannot place camera.")
 
-    # --- Camera data-block --------------------------------------------------
-    cam_data             = bpy.data.cameras.new(name="Player_Camera_Data")
-    cam_data.lens        = 60.0    # 60 mm focal length
-    cam_data.clip_start  = 0.05   # 5 cm near clip
-    cam_data.clip_end    = 500.0  # 500 m far clip
+    center_x = (min(all_xs) + max(all_xs)) / 2.0
+    center_y = (min(all_ys) + max(all_ys)) / 2.0
+    log(f"Scene XY center: ({center_x:.4f}, {center_y:.4f})")
 
-    # --- Camera object ------------------------------------------------------
+    EYE_HEIGHT_M = 1.6
+
+    cam_data            = bpy.data.cameras.new(name="Player_Camera_Data")
+    cam_data.lens       = 60.0
+    cam_data.clip_start = 0.05
+    cam_data.clip_end   = 500.0
+
     cam_obj = bpy.data.objects.new(name="Player_Camera", object_data=cam_data)
     bpy.context.collection.objects.link(cam_obj)
 
-    # --- Position & orientation ---------------------------------------------
     cam_obj.location       = (center_x, center_y, EYE_HEIGHT_M)
-    # 90 deg around X -> camera looks along +Y (Blender default -Z tilted).
     cam_obj.rotation_euler = (math.radians(90), 0.0, 0.0)
-
-    # --- Set as the active scene camera ------------------------------------
     bpy.context.scene.camera = cam_obj
 
     log(
-        f"Player_Camera placed at "
-        f"({center_x:.3f}, {center_y:.3f}, {EYE_HEIGHT_M}) "
-        f"| Rotation: (90 deg, 0, 0) | Set as active scene camera."
+        f"Player_Camera placed at ({center_x:.3f}, {center_y:.3f}, {EYE_HEIGHT_M}) "
+        "| Rotation: (90 deg, 0, 0) | Set as active scene camera."
     )
     return cam_obj
 
@@ -825,20 +971,25 @@ def main() -> None:
     input_3mf, output_blend = parse_cli_args()
     clear_default_scene()
 
-    # 2. Import the 3MF mesh and optimize its geometry.
-    house_obj = import_3mf(input_3mf)
-    apply_smooth_shading(house_obj)
+    # 2. Import mesh (supports both .stl and .3mf).
+    all_objects = import_mesh_file(input_3mf)
 
-    # 3. Create a PBR material driven by the mesh's vertex colors.
-    build_vertex_color_material(house_obj)
+    # 3. Apply smooth shading + Edge Split to every object.
+    apply_smooth_shading_all(all_objects)
 
-    # 4. Set up Cycles + Nishita Sky for realistic daylight.
+    # 4. Build per-object PBR materials driven by vertex colors.
+    build_materials_for_all(all_objects)
+
+    # 4b. Add interior point lights + sun lamp.
+    add_interior_lighting(all_objects)
+
+    # 5. Set up Cycles + Nishita Sky for realistic daylight.
     setup_sky_and_lighting()
 
-    # 5. Place the first-person camera at eye height inside the house.
-    setup_first_person_camera(house_obj)
+    # 6. Place the first-person camera at eye height inside the house.
+    setup_first_person_camera(all_objects)
 
-    # 6. Write the .blend file to disk.
+    # 7. Write the .blend file to disk.
     save_blend(output_blend)
 
     log("=" * 60)

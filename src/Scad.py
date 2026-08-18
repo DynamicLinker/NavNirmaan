@@ -6,14 +6,17 @@ class Scad:
         pass
 
     def write(self, code):
-        # subprocess.run(['echo', '{code}', '>', 'building.scad'], stdout=subprocess.DEVNULL)
         with open("building.scad", "w") as file:
             file.write(code)
-    
-    def getSTL(self, code):
+
+    def get3MF(self, code):
+        """Export to .3mf (colours are assigned by the Blender pipeline, not OpenSCAD)."""
         self.write(code)
-        # command = "openscad -o output.stl building.scad"
         command = "flatpak run org.openscad.OpenSCAD -o output.3mf building.scad"
-        # command = "flatpak run org.openscad.OpenSCAD --enable=fast-csg -o output.3mf building.scad"
         subprocess.run(command.split(), stdout=subprocess.DEVNULL)
-    
+
+    def getSTL(self, code):
+        """Export to .stl file."""
+        self.write(code)
+        command = "flatpak run org.openscad.OpenSCAD -o output.stl building.scad"
+        subprocess.run(command.split(), stdout=subprocess.DEVNULL)

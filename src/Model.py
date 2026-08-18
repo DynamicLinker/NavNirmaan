@@ -119,9 +119,9 @@ class Model:
 
         CRITICAL: You are terrible at spatial math unless you write it out first. You MUST follow this 2-step process.
 
-        === STEP 1: MATHEMATICAL AUDIT (Put this in the 'spatial_analysis' JSON field) ===
+        === STEP 1: MATHEMATICAL AUDIT (Put this in the 'text' JSON field) ===
         Before writing any code, you must complete this exact checklist:
-        1. ROOM BOUNDS: List every room. Calculate its bottom-left (X_start, Y_start) and top-right (X_end, Y_end) coordinates based on the dimensions in the blueprint. 
+        1. ROOM BOUNDS: List every room. Calculate its bottom-left (X_start, Y_start) and top-right (X_end, Y_end) coordinates based on the dimensions in the blueprint.
         2. DOORWAY AUDIT: A room with no doors is a prison. For EVERY room listed above, calculate the exact (X, Y) coordinate for its door. Prove that this coordinate sits perfectly on one of the room's walls.
         3. COLLISION AUDIT: For every piece of furniture, state its (X, Y) position and its width/length. Verify mathematically that its (X+W, Y+L) does NOT overlap with the wall coordinates calculated in Step 1.
 
@@ -134,12 +134,20 @@ class Model:
         wall_h = 9.0;
         wall_t = 0.5;
         door_h = 7.0;
+        floor_h = 0.4;
 
-        module wall_seg(x, y, w, d, h=wall_h) { translate([x, y, 0]) cube([w, d, h]); }
+        module wall_seg(x, y, w, d, h=wall_h) { translate([x, y, floor_h + 0.001]) cube([w, d, h]); }
         module door_gap(x, y, w, d) { translate([x - 0.05, y - 0.05, -0.1]) cube([w + 0.1, d + 0.1, door_h + 0.1]); }
+        ```
 
+        2. FURNITURE MODULES — CRITICAL FLOATING RULE:
+           EVERY piece of furniture MUST be placed at Z = floor_h + 0.002 (which equals 0.402).
+           This 2mm air gap ensures each furniture object is a SEPARATE MESH from the house structure
+           and floor in the exported file, so its color can be dynamically mapped later.
+
+        ```openscad
         module bed(x, y, rot=0) {
-            translate([x, y, 0.4]) rotate([0, 0, rot]) {
+            translate([x, y, floor_h + 0.002]) rotate([0, 0, rot]) {
                 color("Crimson") cube([6.5, 5.0, 1.5]);
                 color("Snow") translate([0.2, 0.4, 1.5]) cube([1.8, 4.2, 0.3]);
                 color("SaddleBrown") translate([-0.3, -0.2, 0]) cube([0.3, 5.4, 3.0]);
@@ -147,38 +155,49 @@ class Model:
         }
 
         module sofa(x, y, rot=0) {
-            translate([x, y, 0.4]) rotate([0, 0, rot]) {
+            translate([x, y, floor_h + 0.002]) rotate([0, 0, rot]) {
                 color("RoyalBlue") { cube([7.0, 2.8, 1.2]); translate([0, 2.2, 1.2]) cube([7.0, 0.6, 1.4]); }
                 color("DarkGoldenrod") translate([1.5, -2.2, 0]) cube([4.0, 1.8, 0.8]);
             }
         }
 
         module dining_table(x, y) {
-            translate([x, y, 0.4]) {
+            translate([x, y, floor_h + 0.002]) {
                 color("SaddleBrown") cube([5.0, 3.2, 2.4]);
                 color("Tan") { translate([-1.0, 0.4, 0]) cube([0.8, 2.4, 2.6]); translate([5.2, 0.4, 0]) cube([0.8, 2.4, 2.6]); }
             }
         }
 
-        module kitchen_counter(x, y, w, d) { translate([x, y, 0.4]) color("DarkSlateGray") cube([w, d, 2.8]); }
+        module kitchen_counter(x, y, w, d) {
+            translate([x, y, floor_h + 0.002]) color("DarkSlateGray") cube([w, d, 2.8]);
+        }
+        ```
 
-            MAIN ASSEMBLY STRUCTURE:
+        3. MAIN ASSEMBLY STRUCTURE:
 
-            Base Floor: color("LightGray") cube([Total_X, Total_Y, 0.4]);
+           Base Floor (separate structure):
+             color("LightGray") cube([Total_X, Total_Y, floor_h]);
 
-            Walls: Put ALL outer boundary walls and internal room partition walls inside union() inside a difference() block.
+           Walls (separate structure floating 1mm above floor):
+             color("WhiteSmoke") difference() {
+               union() {
+                 // ALL wall_seg() calls go here
+               }
+               // ALL door_gap() calls go here
+             }
 
-            Doors: Place door_gap(...) calls inside the difference() subtraction to cut out all doorways shown in the floor plan.
-
-            Furniture: Place bed(), sofa(), dining_table(), and kitchen_counter() strictly using the collision-checked coordinates from your audit.
+           Furniture (called OUTSIDE the difference block, floating 1mm above):
+             bed(x, y);
+             sofa(x, y);
+             dining_table(x, y);
+             kitchen_counter(x, y, w, d);
 
         REQUIREMENTS:
-
-            Do NOT generate just an outer box. Model every room partition shown.
-
-            make sure the extreme edges of the furniture(sofa, bed, table) lies within the boundaries of the room and NOT outside.
-
-            In 'code', output ONLY clean, valid OpenSCAD code matching this template with zero markdown formatting or syntax errors.
+            - Do NOT generate just an outer box. Model every room partition shown.
+            - Furniture extreme edges MUST lie within the room boundaries and NOT outside.
+            - ALL furniture MUST use Z = floor_h + 0.002 (0.402) as base height — no exceptions.
+            - Every geometry primitive MUST be wrapped in a color() call. No gray default geometry.
+            - In 'code', output ONLY clean, valid OpenSCAD code with zero markdown formatting or syntax errors.
             """
 
         response = self.agent.models.generate_content(
