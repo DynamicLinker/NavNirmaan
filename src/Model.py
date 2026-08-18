@@ -10,6 +10,7 @@ class StructuredResponse(BaseModel):
     bathrooms: int
     bedrooms: int
     rooms: int
+    area: float
 
 class Model:
     def __init__(self, api_key):
@@ -204,7 +205,7 @@ class Model:
             - ALL furniture MUST use Z = floor_h + 0.002 (0.402) as base height — no exceptions.
             - Every geometry primitive MUST be wrapped in a color() call. No gray default geometry.
             - In 'code', output ONLY clean, valid OpenSCAD code with zero markdown formatting or syntax errors.
-            - Based on the floorplan, estimate and provide the number of 'bathrooms', 'bedrooms', and total 'rooms' in the JSON response.
+            - Based on the floorplan, estimate and provide the number of 'bathrooms', 'bedrooms', total 'rooms', and the total 'area' in the JSON response.
             """
 
         response = self.agent.models.generate_content(

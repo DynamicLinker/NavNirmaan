@@ -19,15 +19,14 @@ print(ans["code"])
 bathrooms = ans.get("bathrooms", 0)
 bedrooms = ans.get("bedrooms", 0)
 rooms = ans.get("rooms", 0)
+area = ans.get("area", 0.0)
 
-try:
-    area = float(input("Enter the total area in square units: "))
-except ValueError:
-    print("Invalid area entered. Defaulting to 1000.0")
-    area = 1000.0
+city = input("Enter the location (e.g., Kanpur, Delhi, etc.): ").strip()
+if not city:
+    city = "Kanpur"
 
-cost = calculate_cost(bathrooms, bedrooms, rooms, area)
-print(f"Predicted Cost: ${cost:,.2f}")
+cost = calculate_cost(bathrooms, bedrooms, rooms, area, city)
+print(f"Predicted Cost in {city}: ₹{cost:,.2f}")
 
 scad = Scad()
 
