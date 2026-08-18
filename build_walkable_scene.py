@@ -314,30 +314,30 @@ _FURNITURE_KEYWORDS = (
 
 
 # Hardcoded PBR palette — rich, vivid, architectural
-# Linear-space RGB 0-1 values. Made slightly darker per user request.
+# Linear-space RGB 0-1 values. Made significantly darker per user request.
 COLOR_PALETTE = {
     # Furniture
-    'bed':              (0.68, 0.05, 0.05),   # Rich Crimson (Darker)
-    'sofa':             (0.10, 0.22, 0.60),   # Royal Blue (Darker)
-    'couch':            (0.10, 0.22, 0.60),   # Royal Blue (Darker)
-    'table':            (0.32, 0.14, 0.03),   # Warm Walnut (Darker)
-    'counter':          (0.08, 0.17, 0.17),   # Dark Teal (Darker)
-    'chair':            (0.55, 0.44, 0.22),   # Tan (Darker)
-    'wardrobe':         (0.22, 0.10, 0.03),   # Deep Mahogany (Darker)
-    'desk':             (0.42, 0.26, 0.08),   # Oak (Darker)
-    'toilet':           (0.75, 0.77, 0.80),   # Porcelain (Darker)
-    'bathtub':          (0.70, 0.75, 0.80),   # Ice White (Darker)
-    'sink':             (0.68, 0.72, 0.75),   # Silver-White (Darker)
-    'shelf':            (0.45, 0.30, 0.11),   # Beech (Darker)
+    'bed':              (0.40, 0.05, 0.05),   # Dark Crimson
+    'sofa':             (0.05, 0.12, 0.30),   # Dark Navy
+    'couch':            (0.05, 0.12, 0.30),   # Dark Navy
+    'table':            (0.15, 0.08, 0.02),   # Dark Walnut
+    'counter':          (0.05, 0.10, 0.10),   # Very Dark Teal
+    'chair':            (0.30, 0.20, 0.10),   # Dark Tan
+    'wardrobe':         (0.10, 0.05, 0.02),   # Very Dark Mahogany
+    'desk':             (0.20, 0.12, 0.05),   # Dark Oak
+    'toilet':           (0.50, 0.50, 0.55),   # Grey Porcelain
+    'bathtub':          (0.45, 0.50, 0.55),   # Grey White
+    'sink':             (0.40, 0.45, 0.50),   # Grey Silver
+    'shelf':            (0.25, 0.15, 0.05),   # Dark Beech
     # Structure
-    'wall':             (0.70, 0.68, 0.64),   # Warm Off-White (Darker)
-    'floor':            (0.48, 0.35, 0.22),   # Warm Wood (Darker)
-    'ceiling':          (0.75, 0.75, 0.71),   # Pale Cream (Darker)
-    'door':             (0.42, 0.26, 0.11),   # Oak Door (Darker)
-    'window':           (0.42, 0.60, 0.70),   # Sky Blue Glass (Darker)
+    'wall':             (0.45, 0.42, 0.38),   # Medium Grey/Brown (Outer Walls)
+    'floor':            (0.25, 0.15, 0.08),   # Dark Wood Floor
+    'ceiling':          (0.50, 0.50, 0.45),   # Grey Cream
+    'door':             (0.20, 0.12, 0.05),   # Dark Oak Door
+    'window':           (0.20, 0.35, 0.45),   # Dark Glass
     # Fallbacks
-    'default_furniture':(0.42, 0.26, 0.11),   # Generic Warm Wood (Darker)
-    'default_house':    (0.65, 0.63, 0.60),   # Generic Warm Wall (Darker)
+    'default_furniture':(0.20, 0.12, 0.05),   # Dark Generic Wood
+    'default_house':    (0.45, 0.42, 0.38),   # Medium Grey/Brown
 }
 
 
@@ -788,7 +788,7 @@ def add_interior_lighting(objects: list) -> None:
 
     # --- Sun lamp (overhead exterior fill) -----------------------------------
     sun_data = bpy.data.lights.new(name="Sun_Fill", type='SUN')
-    sun_data.energy = 3.0
+    sun_data.energy = 1.0   # Reduced from 3.0 to prevent overexposure
     sun_data.color  = (1.0, 0.97, 0.9)   # slightly warm white
     sun_data.angle  = math.radians(5)    # small angular diameter = harder shadows
     sun_obj = bpy.data.objects.new(name="Sun_Fill", object_data=sun_data)
@@ -799,7 +799,7 @@ def add_interior_lighting(objects: list) -> None:
 
     # --- Central warm fill point light ---------------------------------------
     fill_data = bpy.data.lights.new(name="Interior_Fill", type='POINT')
-    fill_data.energy = 500.0
+    fill_data.energy = 150.0  # Reduced from 500.0 to prevent washing out colors
     fill_data.color  = (1.0, 0.9, 0.75)   # warm incandescent tone
     fill_data.shadow_soft_size = 2.0
     fill_obj = bpy.data.objects.new(name="Interior_Fill", object_data=fill_data)
