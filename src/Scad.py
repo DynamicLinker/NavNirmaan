@@ -14,5 +14,6 @@ class Scad:
         self.write(code)
         # command = "openscad -o output.stl building.scad"
         command = "flatpak run org.openscad.OpenSCAD -o output.3mf building.scad"
+        # command = "flatpak run org.openscad.OpenSCAD --enable=fast-csg -o output.3mf building.scad"
         subprocess.run(command.split(), stdout=subprocess.DEVNULL)
     
