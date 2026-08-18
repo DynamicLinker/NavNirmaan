@@ -147,7 +147,7 @@ class Model:
 
         ```openscad
         module bed(x, y, rot=0) {
-            translate([x, y, floor_h + 0.002]) rotate([0, 0, rot]) {
+            translate([x + 3.25, y + 2.5, floor_h + 0.002]) rotate([0, 0, rot]) translate([-3.25, -2.5, 0]) {
                 color("Crimson") cube([6.5, 5.0, 1.5]);
                 color("Snow") translate([0.2, 0.4, 1.5]) cube([1.8, 4.2, 0.3]);
                 color("SaddleBrown") translate([-0.3, -0.2, 0]) cube([0.3, 5.4, 3.0]);
@@ -155,21 +155,23 @@ class Model:
         }
 
         module sofa(x, y, rot=0) {
-            translate([x, y, floor_h + 0.002]) rotate([0, 0, rot]) {
+            translate([x + 3.5, y + 1.4, floor_h + 0.002]) rotate([0, 0, rot]) translate([-3.5, -1.4, 0]) {
                 color("RoyalBlue") { cube([7.0, 2.8, 1.2]); translate([0, 2.2, 1.2]) cube([7.0, 0.6, 1.4]); }
                 color("DarkGoldenrod") translate([1.5, -2.2, 0]) cube([4.0, 1.8, 0.8]);
             }
         }
 
-        module dining_table(x, y) {
-            translate([x, y, floor_h + 0.002]) {
+        module dining_table(x, y, rot=0) {
+            translate([x + 2.5, y + 1.6, floor_h + 0.002]) rotate([0, 0, rot]) translate([-2.5, -1.6, 0]) {
                 color("SaddleBrown") cube([5.0, 3.2, 2.4]);
                 color("Tan") { translate([-1.0, 0.4, 0]) cube([0.8, 2.4, 2.6]); translate([5.2, 0.4, 0]) cube([0.8, 2.4, 2.6]); }
             }
         }
 
-        module kitchen_counter(x, y, w, d) {
-            translate([x, y, floor_h + 0.002]) color("DarkSlateGray") cube([w, d, 2.8]);
+        module kitchen_counter(x, y, w, d, rot=0) {
+            translate([x + w/2, y + d/2, floor_h + 0.002]) rotate([0, 0, rot]) translate([-w/2, -d/2, 0]) {
+                color("DarkSlateGray") cube([w, d, 2.8]);
+            }
         }
         ```
 
