@@ -5,8 +5,11 @@ import json
 
 
 class StructuredResponse(BaseModel):
-    text : str
-    code : str
+    text: str
+    code: str
+    bathrooms: int
+    bedrooms: int
+    rooms: int
 
 class Model:
     def __init__(self, api_key):
@@ -196,10 +199,12 @@ class Model:
 
         REQUIREMENTS:
             - Do NOT generate just an outer box. Model every room partition shown.
+            - The helper modules now rotate around their center! If you rotate by 90, the bounding box spins in place. So if you place a sofa at (x,y), it will remain centered near (x+3.5, y+1.4) even when rotated.
             - Furniture extreme edges MUST lie within the room boundaries and NOT outside.
             - ALL furniture MUST use Z = floor_h + 0.002 (0.402) as base height — no exceptions.
             - Every geometry primitive MUST be wrapped in a color() call. No gray default geometry.
             - In 'code', output ONLY clean, valid OpenSCAD code with zero markdown formatting or syntax errors.
+            - Based on the floorplan, estimate and provide the number of 'bathrooms', 'bedrooms', and total 'rooms' in the JSON response.
             """
 
         response = self.agent.models.generate_content(
