@@ -1,0 +1,29 @@
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>3D House Viewer</title>
+    <!-- We use A-Frame, a WebVR framework that provides native First Person 'Walking' controls -->
+    <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+  </head>
+  <body>
+    <a-scene>
+      <a-assets>
+        <a-asset-item id="house" src="interactive.glb"></a-asset-item>
+      </a-assets>
+      
+      <!-- Load the exported House Model -->
+      <a-entity gltf-model="#house"></a-entity>
+      
+      <!-- First Person Player Camera -->
+      <!-- A-Frame converts Blender's +Y to WebGL's -Z. So Blender (20, 15) becomes A-Frame (20, -15) -->
+      <!-- We enable Pointer Lock so when you click the screen, you can look around like a video game -->
+      <a-entity position="20 1.6 -15">
+        <a-camera look-controls="pointerLockEnabled: true" wasd-controls="acceleration: 30"></a-camera>
+      </a-entity>
+      
+    </a-scene>
+    
+
+  </body>
+</html>

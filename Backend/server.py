@@ -1,0 +1,83 @@
+from fastapi import FastAPI,UploadFile, File
+from fastapi.responses import FileResponse
+from fastapi.middleware.cors import CORSMiddleware 
+import shutil
+
+from src.Model import *
+from src.Scad import *
+from src.calculate_cost import calculate_cost
+from dotenv import load_dotenv
+import subprocess
+import sys
+import os
+
+
+app = FastAPI(
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None
+)
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins = ["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"]
+)
+
+
+
+load_dotenv()
+
+api_key = os.getenv('api_key')
+agent = Model(api_key)
+scad = Scad()
+
+
+# ans = agent.getResponse("/home/chadpenguin/Projects/Github/2D-to-3D-VR/temp/67ca2328a5aebddb6989e0c8_30x40 3 Bedroom Floor Plan.webp")
+
+@app.post("/api/v1/generate-3d")
+def generate_3d(file: UploadFile = File(...)):  # File(...) fast api will dig through the form response and give the uploaded file. ... is ellipsis in python which means it is required.
+    os.makedirs("temp", exist_ok=True)
+    temp_img_path = f"temp/{file.filename}"
+
+    with open(temp_img_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    
+    ans = agent.getResponse(temp_img_path)
+
+
+# print(ans["code"])
+
+
+    bathrooms = ans.get("bathrooms", 0)
+    bedrooms = ans.get("bedrooms", 0)
+    rooms = ans.get("rooms", 0)
+    area = ans.get("area", 0.0)
+
+    # city = input("Enter the location (e.g., Kanpur, Delhi, etc.): ").strip()
+    # if not city:
+        # city = "Kanpur"
+
+    # cost = calculate_cost(bathrooms, bedrooms, rooms, area, city)
+    # print(f"Predicted Cost in {city}: ₹{cost:,.2f}")
+    
+    print("generating 3mf")
+    scad.get3MF(ans["code"])
+
+
+    print("\nBuilding 3D scene in Blender...")
+    subprocess.run(["blender-5.2", "-b", "-P", "build_walkable_scene.py", "--", "output.3mf", "interactive.blend"], stdout = subprocess.DEVNULL)
+
+    print("\nFiles generated successfully!")
+    print("Launching browser viewer...")
+
+    print("sending glb file to browser...")
+
+    return FileResponse("interactive.glb", media_type="model/gltf-binary", filename="house.glb")
+
+    # subprocess.run([sys.executable, "viewer.py"])
+
+    # sys.exit(0)
