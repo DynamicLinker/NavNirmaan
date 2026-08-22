@@ -44,6 +44,8 @@ async function uploadImage() {
 
         setTimeout(() => {
             houseEntity.setAttribute('gltf-model', '#house');
+            document.getElementById('ui-container').style.display = 'none';
+            document.getElementById('vr-scene').style.visibility = 'visible';
             statusText.innerText = "click screen to walk around.";
         }, 50);
 

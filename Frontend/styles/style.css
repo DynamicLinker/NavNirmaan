@@ -1,0 +1,26 @@
+ /* A sleek floating UI panel for uploading */                                                                                                       
+          #ui-container {                                                                                                                                     
+            position: absolute;                                                                                                                               
+            top: 20px;                                                                                                                                        
+            left: 20px;                                                                                                                                       
+            z-index: 1000;                                                                                                                                    
+            background: rgba(255, 255, 255, 0.95);                                                                                                            
+            padding: 20px;                                                                                                                                    
+            border-radius: 12px;                                                                                                                              
+            font-family: Arial, sans-serif;                                                                                                                   
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);                                                                                                           
+            max-width: 300px;                                                                                                                                 
+          }                                                                                                                                                   
+          button {                                                                                                                                            
+            background-color: #007BFF;                                                                                                                        
+            color: white;                                                                                                                                     
+            border: none;                                                                                                                                     
+            padding: 10px 15px;                                                                                                                               
+            border-radius: 5px;                                                                                                                               
+            cursor: pointer;                                                                                                                                  
+            width: 100%;                                                                                                                                      
+            margin-top: 10px;                                                                                                                                 
+            font-weight: bold;                                                                                                                                
+          }                                                                                                                                                   
+          button:hover { background-color: #0056b3; }                                                                                                         
+          #statusText { font-size: 14px; margin-top: 15px; color: #333; }

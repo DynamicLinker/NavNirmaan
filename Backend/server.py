@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 import subprocess
 import sys
 import os
+import hashlib
 
 
 app = FastAPI(
@@ -41,10 +42,19 @@ scad = Scad()
 @app.post("/api/v1/generate-3d")
 def generate_3d(file: UploadFile = File(...)):  # File(...) fast api will dig through the form response and give the uploaded file. ... is ellipsis in python which means it is required.
     os.makedirs("temp", exist_ok=True)
-    temp_img_path = f"temp/{file.filename}"
+    
+    file_bytes = file.file.read()
+    file_fingerprint = hashlib.md5(file_bytes).hexdigest()
+    cached_glb_path = f"temp/{file_fingerprint}.glb"
+    
+    if os.path.exists(cached_glb_path):
+        print("Returning cached model!")
+        return FileResponse(cached_glb_path, media_type="model/gltf-binary", filename="house.glb")
+
+    temp_img_path = f"temp/{file_fingerprint}_{file.filename}"
 
     with open(temp_img_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+        buffer.write(file_bytes)
     
     ans = agent.getResponse(temp_img_path)
 
@@ -76,7 +86,9 @@ def generate_3d(file: UploadFile = File(...)):  # File(...) fast api will dig th
 
     print("sending glb file to browser...")
 
-    return FileResponse("interactive.glb", media_type="model/gltf-binary", filename="house.glb")
+    os.rename("interactive.glb", cached_glb_path)
+
+    return FileResponse(cached_glb_path, media_type="model/gltf-binary", filename="house.glb")
 
     # subprocess.run([sys.executable, "viewer.py"])
 
