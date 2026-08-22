@@ -1,8 +1,4 @@
-import http.server
-import socketserver
-import os
 
-HTML_CONTENT = """
 <!DOCTYPE html>
 <html>
   <head>
@@ -31,30 +27,3 @@ HTML_CONTENT = """
 
   </body>
 </html>
-"""
-
-def main():
-    # 1. Write the HTML file to the directory
-    html_path = "index.html"
-    with open(html_path, "w") as f:
-        f.write(HTML_CONTENT)
-    
-    # 2. Start a simple web server
-    port = 7000
-    Handler = http.server.SimpleHTTPRequestHandler
-    
-    print("=" * 60)
-    print(f" Web Server started at:  http://localhost:{port}")
-    print("=" * 60)
-    
-    # Avoid "Address already in use" errors if restarted quickly
-    socketserver.TCPServer.allow_reuse_address = True
-    
-    with socketserver.TCPServer(("", port), Handler) as httpd:
-        try:
-            httpd.serve_forever()
-        except KeyboardInterrupt:
-            print("\\nShutting down server.")
-
-if __name__ == "__main__":
-    main()

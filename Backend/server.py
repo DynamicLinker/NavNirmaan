@@ -75,11 +75,20 @@ def generate_3d(file: UploadFile = File(...)):  # File(...) fast api will dig th
     # print(f"Predicted Cost in {city}: ₹{cost:,.2f}")
     
     print("generating 3mf")
+    
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    
+    # Save furniture JSON
+    import json
+    furniture_path = os.path.join(script_dir, "furniture.json")
+    with open(furniture_path, "w") as f:
+        json.dump(ans.get("furniture", []), f)
+        
     scad.get3MF(ans["code"])
 
 
     print("\nBuilding 3D scene in Blender...")
-    subprocess.run(["blender-5.2", "-b", "-P", "build_walkable_scene.py", "--", "output.3mf", "interactive.blend"], stdout = subprocess.DEVNULL)
+    subprocess.run(["blender-5.2", "-b", "-P", "build_walkable_scene.py", "--", "output.3mf", "interactive.blend"], stdout = subprocess.DEVNULL, cwd=script_dir)
 
     print("\nFiles generated successfully!")
     print("Launching browser viewer...")

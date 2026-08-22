@@ -4,6 +4,14 @@ from pydantic import BaseModel
 import json
 
 
+from pydantic import BaseModel
+
+class FurnitureItem(BaseModel):
+    type: str
+    x: float
+    y: float
+    rot: float
+
 class StructuredResponse(BaseModel):
     text: str
     code: str
@@ -144,43 +152,56 @@ class Model:
         module door_gap(x, y, w, d) { translate([x - 0.05, y - 0.05, -0.1]) cube([w + 0.1, d + 0.1, door_h + 0.1]); }
         ```
 
-        2. FURNITURE MODULES — CRITICAL FLOATING RULE:
-           EVERY piece of furniture MUST be placed at Z = floor_h + 0.002 (which equals 0.402).
-           This 2mm air gap ensures each furniture object is a SEPARATE MESH from the house structure
-           and floor in the exported file, so its color can be dynamically mapped later.
-
+        2. DETAILED FURNITURE MODULES (CRITICAL: Everything must be wrapped in a union!):
+           EVERY piece of furniture MUST be placed at Z = floor_h + 0.002.
+           Since OpenSCAD strips colors in 3MF, we rely on Blender's geometric heuristic. 
+           You MUST wrap each furniture module in a `union()` so it exports as a single solid mesh!
+        
         ```openscad
-        module bed(x, y, rot=0) {
-            translate([x + 3.25, y + 2.5, floor_h + 0.002]) rotate([0, 0, rot]) translate([-3.25, -2.5, 0]) {
-                color("Crimson") cube([6.5, 5.0, 1.5]);
-                color("Snow") translate([0.2, 0.4, 1.5]) cube([1.8, 4.2, 0.3]);
-                color("SaddleBrown") translate([-0.3, -0.2, 0]) cube([0.3, 5.4, 3.0]);
+        module bed(x, y, w=6.5, d=5.0, rot=0) {
+            translate([x + w/2, y + d/2, floor_h + 0.002]) rotate([0, 0, rot]) translate([-w/2, -d/2, 0]) union() {
+                color("Crimson") cube([w, d, 0.5]); // Frame
+                color("Snow") translate([0.2, 0.2, 0.5]) cube([w-0.4, d-0.4, 0.8]); // Mattress
+                color("GhostWhite") translate([0.5, d-1.5, 1.3]) cube([1.5, 1.0, 0.3]); // Pillow 1
+                color("GhostWhite") translate([2.5, d-1.5, 1.3]) cube([1.5, 1.0, 0.3]); // Pillow 2
+                color("Crimson") translate([0.1, 0.1, 0.5]) cube([w-0.2, d-2.0, 0.9]); // Blanket
             }
         }
 
-        module sofa(x, y, rot=0) {
-            translate([x + 3.5, y + 1.4, floor_h + 0.002]) rotate([0, 0, rot]) translate([-3.5, -1.4, 0]) {
-                color("RoyalBlue") { cube([7.0, 2.8, 1.2]); translate([0, 2.2, 1.2]) cube([7.0, 0.6, 1.4]); }
-                color("DarkGoldenrod") translate([1.5, -2.2, 0]) cube([4.0, 1.8, 0.8]);
+        module sofa(x, y, w=7.0, d=3.0, rot=0) {
+            translate([x + w/2, y + d/2, floor_h + 0.002]) rotate([0, 0, rot]) translate([-w/2, -d/2, 0]) union() {
+                color("RoyalBlue") cube([w, d-0.5, 1.0]); // Base
+                color("RoyalBlue") translate([0, d-0.5, 0]) cube([w, 0.5, 2.5]); // Backrest
+                color("DarkGoldenrod") translate([0, 0, 0]) cube([0.5, d, 1.8]); // Armrest L
+                color("DarkGoldenrod") translate([w-0.5, 0, 0]) cube([0.5, d, 1.8]); // Armrest R
+                color("LightSkyBlue") translate([0.6, 0.1, 1.0]) cube([w/2 - 0.7, d-0.7, 0.3]); // Cushion L
+                color("LightSkyBlue") translate([w/2 + 0.1, 0.1, 1.0]) cube([w/2 - 0.7, d-0.7, 0.3]); // Cushion R
             }
         }
 
-        module dining_table(x, y, rot=0) {
-            translate([x + 2.5, y + 1.6, floor_h + 0.002]) rotate([0, 0, rot]) translate([-2.5, -1.6, 0]) {
-                color("SaddleBrown") cube([5.0, 3.2, 2.4]);
-                color("Tan") { translate([-1.0, 0.4, 0]) cube([0.8, 2.4, 2.6]); translate([5.2, 0.4, 0]) cube([0.8, 2.4, 2.6]); }
+        module dining_table(x, y, w=5.0, d=3.5, rot=0) {
+            translate([x + w/2, y + d/2, floor_h + 0.002]) rotate([0, 0, rot]) translate([-w/2, -d/2, 0]) union() {
+                color("SaddleBrown") translate([0, 0, 2.2]) cube([w, d, 0.2]); // Top
+                color("Tan") translate([0.2, 0.2, 0]) cube([0.3, 0.3, 2.2]); // Leg 1
+                color("Tan") translate([w-0.5, 0.2, 0]) cube([0.3, 0.3, 2.2]); // Leg 2
+                color("Tan") translate([0.2, d-0.5, 0]) cube([0.3, 0.3, 2.2]); // Leg 3
+                color("Tan") translate([w-0.5, d-0.5, 0]) cube([0.3, 0.3, 2.2]); // Leg 4
+                color("Chocolate") translate([w/2 - 0.8, -1.0, 0]) { cube([1.6, 1.2, 1.2]); translate([0, -0.2, 0]) cube([1.6, 0.2, 2.4]); } // Chair 1
+                color("Chocolate") translate([w/2 - 0.8, d + 0.2, 0]) { cube([1.6, 1.2, 1.2]); translate([0, 1.2, 0]) cube([1.6, 0.2, 2.4]); } // Chair 2
             }
         }
 
         module kitchen_counter(x, y, w, d, rot=0) {
-            translate([x + w/2, y + d/2, floor_h + 0.002]) rotate([0, 0, rot]) translate([-w/2, -d/2, 0]) {
-                color("DarkSlateGray") cube([w, d, 2.8]);
+            translate([x + w/2, y + d/2, floor_h + 0.002]) rotate([0, 0, rot]) translate([-w/2, -d/2, 0]) union() {
+                color("DarkSlateGray") cube([w, d, 2.6]); // Base
+                color("WhiteSmoke") translate([-0.1, -0.1, 2.6]) cube([w+0.2, d+0.2, 0.2]); // Top
+                color("Silver") translate([w/2 - 1.0, d/2 - 0.8, 2.8]) cube([2.0, 1.6, 0.1]); // Sink
+                color("DimGray") translate([w/2 - 0.1, d/2 + 0.5, 2.8]) cube([0.2, 0.2, 0.6]); // Faucet
             }
         }
         ```
 
         3. MAIN ASSEMBLY STRUCTURE:
-
            Base Floor (separate structure):
              color("LightGray") cube([Total_X, Total_Y, floor_h]);
 
@@ -192,19 +213,18 @@ class Model:
                // ALL door_gap() calls go here
              }
 
-           Furniture (called OUTSIDE the difference block, floating 1mm above):
-             bed(x, y);
-             sofa(x, y);
-             dining_table(x, y);
-             kitchen_counter(x, y, w, d);
+           Furniture (called OUTSIDE the difference block, floating 2mm above):
+             bed(1.5, 24, w=6.0, d=5.0, rot=0);
+             sofa(1.0, 6.0, rot=90);
+             dining_table(15.0, 6.0);
+             kitchen_counter(22.0, 1.0, w=6.0, d=2.0, rot=0); // MUST HAVE WIDE SIDE AGAINST WALL
 
         REQUIREMENTS:
             - Do NOT generate just an outer box. Model every room partition shown.
-            - The helper modules now rotate around their center! If you rotate by 90, the bounding box spins in place. So if you place a sofa at (x,y), it will remain centered near (x+3.5, y+1.4) even when rotated.
+            - The helper modules now rotate around their center! If you rotate by 90, the bounding box spins in place. 
+            - You MUST adjust the dimensions `w` and `d` when calling the furniture modules to fit the space perfectly!
             - Furniture extreme edges MUST lie within the room boundaries and NOT outside.
-            - ALL furniture MUST use Z = floor_h + 0.002 (0.402) as base height — no exceptions.
-            - Every geometry primitive MUST be wrapped in a color() call. No gray default geometry.
-            - In 'code', output ONLY clean, valid OpenSCAD code with zero markdown formatting or syntax errors.
+            - In 'code', output ONLY clean, valid OpenSCAD code for the walls, floor, and furniture.
             - Based on the floorplan, estimate and provide the number of 'bathrooms', 'bedrooms', total 'rooms', and the total 'area' in the JSON response.
             """
 

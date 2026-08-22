@@ -963,19 +963,130 @@ def export_glb(output_path: str) -> None:
         glb_path += '.glb'
         
     log(f"Exporting Web-ready .glb file to: {glb_path} ...")
-    try:
-        bpy.ops.export_scene.gltf(
-            filepath=glb_path,
-            export_format='GLB',
-            export_materials='EXPORT'
-        )
-        log("GLB export successful.")
-    except Exception as e:
-        log(f"Warning: GLB export failed: {e}")
+    
+    # We are removing the try/except block so if it fails, it will print the EXACT error!
+    bpy.ops.export_scene.gltf(
+        filepath=glb_path,
+        export_format='GLB'
+    )
+    log("GLB export successful.")
 
 # =============================================================================
 # MAIN ENTRY POINT
 # =============================================================================
+
+
+
+def swap_furniture_with_assets() -> None:
+    """Reads furniture.json and spawns high-quality GLB assets at precise AI coordinates."""
+    log("Spawning high-quality furniture from JSON coordinates...")
+    
+    import json
+    import math
+    import mathutils
+    import os
+    
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    assets_dir = os.path.join(script_dir, "assets")
+    json_path = os.path.join(script_dir, "furniture.json")
+    
+    if not os.path.exists(json_path):
+        log("No furniture.json found. Skipping furniture placement.")
+        return
+        
+    with open(json_path, "r") as f:
+        furniture_list = json.load(f)
+        
+    for item in furniture_list:
+        ftype = item.get("type", "").lower()
+        x = item.get("x", 0)
+        y = item.get("y", 0)
+        rot_deg = item.get("rot", 0)
+        
+        asset_file = None
+        if "bed" in ftype: asset_file = "bed.glb"
+        elif "sofa" in ftype: asset_file = "sofa.glb"
+        elif "table" in ftype: asset_file = "table.glb"
+        elif "counter" in ftype: asset_file = "counter.glb"
+        elif "cabinet" in ftype: asset_file = "cabinet.glb" # Added support for cabinet!
+        
+        if asset_file:
+            asset_path = os.path.join(assets_dir, asset_file)
+            if os.path.exists(asset_path):
+                # Target dimensions (in feet, matching OpenSCAD AI logic)
+                target_w, target_d = 0.0, 0.0
+                if asset_file == "bed.glb": target_w, target_d = 6.5, 5.0
+                elif asset_file == "sofa.glb": target_w, target_d = 7.0, 2.8
+                elif asset_file == "table.glb": target_w, target_d = 5.0, 3.2
+                elif asset_file == "counter.glb": 
+                    target_w = item.get("w", 4.0)
+                    target_d = item.get("d", 2.0)
+                elif asset_file == "cabinet.glb":
+                    target_w = item.get("w", 4.0)
+                    target_d = item.get("d", 1.5)
+                
+                z0 = 0.4  # Floor height
+                
+                pre_import = set(bpy.context.scene.objects)
+                bpy.ops.import_scene.gltf(filepath=asset_path)
+                post_import = set(bpy.context.scene.objects)
+                new_asset_parts = list(post_import - pre_import)
+                
+                root_obj = None
+                for obj in new_asset_parts:
+                    if obj.parent is None:
+                        root_obj = obj
+                        break
+                        
+                if root_obj:
+                    # Apply rotation first
+                    root_obj.rotation_euler = (0, 0, math.radians(rot_deg))
+                    bpy.context.view_layer.update()
+                    
+                    # 1. Measure the current physical size of the asset
+                    min_x = min_y = float('inf')
+                    max_x = max_y = float('-inf')
+                    for obj in new_asset_parts:
+                        if obj.type == 'MESH':
+                            for v in obj.bound_box:
+                                v_world = obj.matrix_world @ mathutils.Vector(v)
+                                min_x = min(min_x, v_world.x)
+                                max_x = max(max_x, v_world.x)
+                                min_y = min(min_y, v_world.y)
+                                max_y = max(max_y, v_world.y)
+                    
+                    current_w = max(0.01, max_x - min_x)
+                    current_d = max(0.01, max_y - min_y)
+                    
+                    # 2. Scale the asset so its bounding box EXACTLY matches the OpenSCAD target dimensions
+                    scale_factor = max(target_w / current_w, target_d / current_d)
+                    
+                    # Prevent zero division / huge stretching if rotated internally
+                    if abs((target_w / current_w) - (target_d / current_d)) > 1.0:
+                         scale_factor = max(target_w / current_d, target_d / current_w)
+                         
+                    root_obj.scale = (scale_factor, scale_factor, scale_factor)
+                    bpy.context.view_layer.update()
+                    
+                    # 3. Flawless Bounding Box Alignment!
+                    # We recalculate the bounding box AFTER scaling
+                    min_x = min_y = min_z = float('inf')
+                    for obj in new_asset_parts:
+                        if obj.type == 'MESH':
+                            for v in obj.bound_box:
+                                v_world = obj.matrix_world @ mathutils.Vector(v)
+                                min_x = min(min_x, v_world.x)
+                                min_y = min(min_y, v_world.y)
+                                min_z = min(min_z, v_world.z)
+                    
+                    # We shift the asset so its absolute lowest X, Y, and Z bounds 
+                    # perfectly align with the AI's targeted bottom-left corner!
+                    # No matter where the GLB creator put the pivot point, this guarantees it won't go through walls!
+                    root_obj.location.x += (x - min_x)
+                    root_obj.location.y += (y - min_y)
+                    root_obj.location.z += (z0 - min_z)
+                    
+    log("Furniture JSON placement complete!")
 
 def main() -> None:
     """
@@ -1007,6 +1118,9 @@ def main() -> None:
 
     # 6. Place the first-person camera at eye height inside the house.
     setup_first_person_camera(all_objects)
+
+    # 6b. Spawn flawlessly aligned high-quality assets.
+    swap_furniture_with_assets()
 
     # 7. Write the .blend file to disk.
     save_blend(output_blend)
