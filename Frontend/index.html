@@ -1,29 +1,40 @@
-
 <!DOCTYPE html>
 <html>
-  <head>
+<head>
+    <meta charset="UTF-8" />
     <title>3D House Viewer</title>
-    <!-- We use A-Frame, a WebVR framework that provides native First Person 'Walking' controls -->
+    <link rel="stylesheet" href="styles/style.css">
     <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
-  </head>
-  <body>
-    <a-scene>
-      <a-assets>
-        <a-asset-item id="house" src="interactive.glb"></a-asset-item>
-      </a-assets>
-      
-      <!-- Load the exported House Model -->
-      <a-entity gltf-model="#house"></a-entity>
-      
-      <!-- First Person Player Camera -->
-      <!-- A-Frame converts Blender's +Y to WebGL's -Z. So Blender (20, 15) becomes A-Frame (20, -15) -->
-      <!-- We enable Pointer Lock so when you click the screen, you can look around like a video game -->
-      <a-entity position="20 1.6 -15">
-        <a-camera look-controls="pointerLockEnabled: true" wasd-controls="acceleration: 30"></a-camera>
-      </a-entity>
-      
-    </a-scene>
+</head>
+<body>
+
+    <div id="ui-container">                                                                                                                               
+        <h3 style="margin-top: 0;">Upload Floor Plan</h3>                                                                                                   
+        <input type="file" id="imageInput" accept="image/*">                                                                                                
+        <button onclick="uploadImage()">Generate 3D World</button>                                                                                          
+        <p id="statusText">Waiting for upload...</p>                                                                                                        
+    </div>   
+    
+    <a-scene>                                                                                                                                             
+        <a-assets>                                                                                                                                          
+        <!-- This starts empty. JavaScript will fill it with the .glb later -->                                                                           
+        <a-asset-item id="house" src=""></a-asset-item>                                                                                                   
+        </a-assets>                                                                                                                                         
+                                                                                                                                                            
+        <!-- The entity where the house model will spawn -->                                                                                                
+        <a-entity id="house-entity" gltf-model="#house"></a-entity>                                                                                         
+                                                                                                                                                            
+        <!-- Player Camera (You can walk around with W, A, S, D) -->                                                                                        
+        <a-entity position="20 1.6 -15">                                                                                                                    
+        <a-camera look-controls="pointerLockEnabled: true" wasd-controls="acceleration: 30"></a-camera>                                                   
+        </a-entity>                                                                                                                                         
+                                                                                                                                                            
+        <!-- Basic environment lighting so we can see the house clearly -->                                                                                 
+        <a-sky color="#ECECEC"></a-sky>                                                                                                                     
+    </a-scene> 
+
+    <script src="scripts/script.js"></script>
     
 
-  </body>
+</body>
 </html>
