@@ -1,5 +1,6 @@
 from fastapi import FastAPI,UploadFile, File
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware 
 import shutil
 
@@ -37,10 +38,9 @@ agent = Model(api_key)
 scad = Scad()
 
 
-# ans = agent.getResponse("/home/chadpenguin/Projects/Github/2D-to-3D-VR/temp/67ca2328a5aebddb6989e0c8_30x40 3 Bedroom Floor Plan.webp")
 
 @app.post("/api/v1/generate-3d")
-def generate_3d(file: UploadFile = File(...)):  # File(...) fast api will dig through the form response and give the uploaded file. ... is ellipsis in python which means it is required.
+def generate_3d(file: UploadFile = File(...)):
     os.makedirs("temp", exist_ok=True)
     
     file_bytes = file.file.read()
@@ -58,27 +58,15 @@ def generate_3d(file: UploadFile = File(...)):  # File(...) fast api will dig th
     
     ans = agent.getResponse(temp_img_path)
 
-
-# print(ans["code"])
-
-
     bathrooms = ans.get("bathrooms", 0)
     bedrooms = ans.get("bedrooms", 0)
     rooms = ans.get("rooms", 0)
     area = ans.get("area", 0.0)
 
-    # city = input("Enter the location (e.g., Kanpur, Delhi, etc.): ").strip()
-    # if not city:
-        # city = "Kanpur"
-
-    # cost = calculate_cost(bathrooms, bedrooms, rooms, area, city)
-    # print(f"Predicted Cost in {city}: ₹{cost:,.2f}")
-    
     print("generating 3mf")
     
     script_dir = os.path.dirname(os.path.abspath(__file__))
     
-    # Save furniture JSON
     import json
     furniture_path = os.path.join(script_dir, "furniture.json")
     with open(furniture_path, "w") as f:
@@ -88,7 +76,7 @@ def generate_3d(file: UploadFile = File(...)):  # File(...) fast api will dig th
 
 
     print("\nBuilding 3D scene in Blender...")
-    subprocess.run(["blender-5.2", "-b", "-P", "build_walkable_scene.py", "--", "output.3mf", "interactive.blend"], stdout = subprocess.DEVNULL, cwd=script_dir)
+    subprocess.run(["blender-5.2", "-b", "-P", "src/build_walkable_scene.py", "--", "output.3mf", "interactive.blend"], stdout = subprocess.DEVNULL, cwd=script_dir)
 
     print("\nFiles generated successfully!")
     print("Launching browser viewer...")
@@ -99,6 +87,4 @@ def generate_3d(file: UploadFile = File(...)):  # File(...) fast api will dig th
 
     return FileResponse(cached_glb_path, media_type="model/gltf-binary", filename="house.glb")
 
-    # subprocess.run([sys.executable, "viewer.py"])
-
-    # sys.exit(0)
+app.mount("/", StaticFiles(directory="../Frontend", html=True), name="frontend")

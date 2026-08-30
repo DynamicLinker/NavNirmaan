@@ -36,23 +36,6 @@ class Model:
     def getResponse(self, image):
         image = self.send_image(image)
 
-        # prompt = """
-        # You are an expert 3D architect and OpenSCAD developer. I have provided an image of a 2D floor plan. Your task is to analyze the spatial layout, room labels, and door placements to generate clean, functional OpenSCAD code that visualizes this layout in 3D.
-
-        # Follow these strict architectural constraints:
-        # 1. MODULAR DESIGN: Do not write a single monolithic block of geometry. Define reusable helper modules first (e.g., `wall(w, d, h)`, `bed()`, `table()`, `sofa()`, `door_cutout()`), and then call them in a main `union()` or `difference()` block. 
-        # 2. CSG BEST PRACTICES: When using `difference()` to cut doors out of walls, ensure the cutting volume is slightly thicker than the wall (using a small epsilon value) to prevent z-fighting and non-manifold edges.
-        # 3. SPATIAL ACCURACY: Analyze the image to map out the exterior boundary walls and interior partitions. Place door gaps exactly where they appear in the blueprint. Add a flat base cube to act as the floor.
-        # 4. FURNITURE PLACEMENT: Look at the room labels (e.g., Bedroom, Living Room, Kitchen, Washroom). Place stylized furniture modules in logical positions within those rooms to bring the layout to life.
-        # 5. VIBRANT 3MF COLORING: This model will be exported as a multi-color .3mf file. Every single geometric object MUST be wrapped in a `color("ColorName")` tag. 
-        #    - Use realistic architectural colors (e.g., "SlateGray" for walls, "BurlyWood" for wood floors, "GhostWhite" for bathroom fixtures, "SaddleBrown" for tables, "Crimson" for beds).
-        #    - Do not leave any default gray geometry.
-        #    - Ensure that objects of different colors do not perfectly overlap (e.g., furniture should sit exactly on top of the floor, not intersect it) to prevent visual glitches during 3MF export.
-        # 6. STRICT SYNTAX: The generated script must contain zero syntax errors. Ensure all brackets are closed and semicolons are present. Do not include any code comments.
-        
-        # Provide a brief summary of your spatial analysis in the 'text' field, and output only the raw OpenSCAD script in the 'code' field.
-        # """
-
         prompt = """
         You are an expert 3D architectural CAD engine. Analyze the provided 2D floor plan image and generate complete, production-ready OpenSCAD code.
 
@@ -229,8 +212,7 @@ class Model:
             """
 
         response = self.agent.models.generate_content(
-            # model = 'gemini-3.6-flash',
-            model = 'gemini-3.5-flash',
+            model = 'gemini-3.5-flash-lite',
             contents = [image, prompt],
             config = self.config
         )

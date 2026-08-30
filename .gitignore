@@ -6,3 +6,5 @@ temp/
 temp/*
 env
 src/__pycache__/*
+assets/
+Backend/assets/

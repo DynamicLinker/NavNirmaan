@@ -14,16 +14,14 @@ class Scad:
             file.write(code)
 
     def get3MF(self, code):
-        """Export to .3mf (colours are assigned by the Blender pipeline, not OpenSCAD)."""
         self.write(code)
         import os
         script_dir = os.path.dirname(os.path.abspath(__file__))
         backend_dir = os.path.dirname(script_dir)
-        command = "flatpak run org.openscad.OpenSCAD -o output.3mf building.scad"
+        command = "openscad -o output.3mf building.scad"
         subprocess.run(command.split(), stdout=subprocess.DEVNULL, cwd=backend_dir)
 
     def getSTL(self, code):
-        """Export to .stl file."""
         self.write(code)
-        command = "flatpak run org.openscad.OpenSCAD -o output.stl building.scad"
+        command = "openscad -o output.stl building.scad"
         subprocess.run(command.split(), stdout=subprocess.DEVNULL)
