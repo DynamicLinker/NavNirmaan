@@ -1,4 +1,4 @@
-# NavNirmaan (2D to 3D VR Floorplan Converter)
+# NavNirmaan
 
 A unique AI-powered pipeline that transforms standard 2D floor plan images into 3D, walkable Virtual Reality scenes with automated construction cost estimation.
 
@@ -49,16 +49,15 @@ The easiest way to run the entire stack (FastAPI Backend + Frontend Web UI) is v
 ## 💻 Usage
 
 1. **Run the Docker Container:**
-   Pass your `.env` file into the container when you run it, and map port `8000`:
+   Pass your `.env` file into the container when you run it, and map both ports `8000` (Backend) and `8080` (Frontend):
    ```bash
-   docker run -p 8000:8000 --env-file .env navnirmaan
+   docker run -p 8000:8000 -p 8080:8080 --env-file .env navnirmaan
    ```
 
 2. **Access the Web App:**
-   A basic and simple web UI has been provided to access the main tool.
-   Open your browser and navigate to:
+   A basic and simple web UI has been provided to access the main tool. Open your browser and navigate to:
    ```
-   http://localhost:8000/
+   http://localhost:8080/
    ```
    
 3. **Generate 3D Models:**
