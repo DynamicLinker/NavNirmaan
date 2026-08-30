@@ -31,8 +31,8 @@ The easiest way to run the entire stack (FastAPI Backend + Frontend Web UI) is v
 
 1. **Clone the repository**:
    ```bash
-   git clone <your-repo-url>
-   cd 2D-to-3D-VR
+   git clone https://github.com/DynamicLinker/NavNirmaan,git
+   cd NavNirmaan
    ```
 
 2. **Set up your Environment Variables:**
@@ -55,6 +55,7 @@ The easiest way to run the entire stack (FastAPI Backend + Frontend Web UI) is v
    ```
 
 2. **Access the Web App:**
+   A basic and simple web UI has been provided to access the main tool.
    Open your browser and navigate to:
    ```
    http://localhost:8000/
@@ -64,4 +65,5 @@ The easiest way to run the entire stack (FastAPI Backend + Frontend Web UI) is v
    Upload your 2D floor plan through the frontend UI. The FastAPI server (`Backend/server.py`) will automatically process it using the AI model, convert the architecture via OpenSCAD, render the scene headlessly using Blender, and return a `.glb` VR-ready file directly to your browser!
 
 ---
-*(created by ajites chaurasia)*
+
+*created by Ajitesh Chaurasia*
