@@ -8,3 +8,16 @@ env
 src/__pycache__/*
 assets/
 Backend/assets/
+# Python caches
+__pycache__/
+*.pyc
+
+# 3D and generated files
+*.blend
+*.blend1
+*.3mf
+*.scad
+*.glb
+*.amf
+furniture.json
+
