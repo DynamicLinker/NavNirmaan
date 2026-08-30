@@ -31,7 +31,7 @@ The easiest way to run the entire stack (FastAPI Backend + Frontend Web UI) is v
 
 1. **Clone the repository**:
    ```bash
-   git clone https://github.com/DynamicLinker/NavNirmaan,git
+   git clone https://github.com/DynamicLinker/NavNirmaan.git
    cd NavNirmaan
    ```
 
