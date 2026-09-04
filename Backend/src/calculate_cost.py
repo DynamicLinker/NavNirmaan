@@ -25,7 +25,7 @@ def calculate_cost(bathrooms: int, bedrooms: int, rooms: int, area: float, city:
         wall_t = 0.5
         wall_volume_cft = total_wall_length * wall_h * wall_t
         
-        # Rule of thumb: ~10 bricks per cubic foot of brickwork, ~0.05 bags cement per brick
+        # ~10 bricks per cubic foot of brickwork, ~0.05 bags cement per brick
         bricks_quantity = int(wall_volume_cft * 10)
         cement_bags = bricks_quantity * 0.05
             
@@ -41,7 +41,6 @@ def calculate_cost(bathrooms: int, bedrooms: int, rooms: int, area: float, city:
             'city': city
         }
         
-        # Load dataset to pad remaining features with averages, ensuring model compatibility
         dataset_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'indian_house_construction_dataset_1000.csv')
         if os.path.exists(dataset_path):
             try:
