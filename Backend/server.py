@@ -1,6 +1,5 @@
 from fastapi import FastAPI,UploadFile, File
 from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware 
 import shutil
 
@@ -86,5 +85,3 @@ def generate_3d(file: UploadFile = File(...)):
     os.rename("interactive.glb", cached_glb_path)
 
     return FileResponse(cached_glb_path, media_type="model/gltf-binary", filename="house.glb")
-
-app.mount("/", StaticFiles(directory="../Frontend", html=True), name="frontend")
