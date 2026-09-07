@@ -1,3 +1,16 @@
+# -----------------------------------------------------------------------------
+# Copyright (c) 2026 Ajitesh Chaurasia
+# 
+# This file is part of NavNirmaan (https://github.com/DynamicLinker/NavNirmaan/).
+# 
+# This program is free software: you can redistribute it and/or modify it 
+# under the terms of the GNU Affero General Public License as published by 
+# the Free Software Foundation, version 3.
+# 
+# Commercial licensing is available. See README.md for details.
+# -----------------------------------------------------------------------------
+
+
 from fastapi import FastAPI,UploadFile, File
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware 
