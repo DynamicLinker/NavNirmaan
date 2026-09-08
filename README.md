@@ -65,4 +65,26 @@ The easiest way to run the entire stack (FastAPI Backend + Frontend Web UI) is v
 
 ---
 
+## ⚖️ License & Commercial Use
+
+* This software is dual-licensed.
+
+* For Open Source & Non-Commercial Use:
+This project is open-source and licensed under the GNU Affero General Public License v3.0 (AGPLv3). You are free to use, modify, and distribute this software for personal, academic, or non-profit applications, provided you adhere to the terms of the AGPLv3 (which includes open-sourcing any derivative works or network services under the same license).
+
+* For Commercial Use:
+If you wish to use this software, its API, or its headless rendering pipeline in a commercial product, proprietary SaaS, or closed-source environment without being bound by the AGPLv3 requirement to open-source your own codebase, you must purchase a commercial license.
+
+For commercial licensing inquiries, please contact me directly.
+
+
+## 🖋️ Attribution Requirement
+
+* If you use this software, fork it, or include any of its core architecture (such as the spatial extraction, OpenSCAD micro-gap logic, or the headless Blender pipeline) in an open-source project or academic research, you must provide explicit attribution.
+
+* You must include the original copyright notices in the source code and credit with a link back to this original GitHub repository.
+
+
+---
+
 *created by Ajitesh Chaurasia*
