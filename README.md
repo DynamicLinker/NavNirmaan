@@ -87,4 +87,13 @@ For commercial licensing inquiries, please contact me directly.
 
 ---
 
-*created by Ajitesh Chaurasia*
+
+*Created for SIH Hackathon*
+
+*Team Members :-*
+- Ajitesh Chaurasia
+- Anubhav Omar
+- Aisha Gupta 
+- Aditi Sachan
+- Vishal Gupta
+- Aditi Chaturvedi
